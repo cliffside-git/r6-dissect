@@ -4,7 +4,7 @@ package main
 import "C"
 import (
 	"encoding/json"
-	"github.com/redraskal/r6-dissect/dissect"
+	"github.com/cliffside-git/r6-dissect/dissect"
 	"github.com/rs/zerolog"
 	"os"
 )

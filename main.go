@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/redraskal/r6-dissect/dissect"
+	"github.com/cliffside-git/r6-dissect/dissect"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -90,7 +90,7 @@ func setup() {
 	if viper.GetBool("version") {
 		zerolog.SetGlobalLevel(zerolog.InfoLevel)
 		log.Info().Msgf("r6-dissect version: %s", Version)
-		log.Info().Msg("https://github.com/redraskal/r6-dissect")
+		log.Info().Msg("https://github.com/cliffside-git/r6-dissect")
 		os.Exit(0)
 	}
 	extra := len(pflag.Args())

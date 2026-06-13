@@ -21,7 +21,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/redraskal/r6-dissect/dissect/ubi"
+	"github.com/cliffside-git/r6-dissect/dissect/ubi"
 	"golang.org/x/tools/go/packages"
 )
 

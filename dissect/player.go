@@ -12,6 +12,9 @@ func readPlayer(r *Reader) error {
 	if r.Header.CodeVersion <= Y7S2 {
 		idIndicator = []byte{0xE6, 0xF9, 0x7D, 0x86}
 	}
+	if r.Header.CodeVersion >= 9734089 { // Y11S2 mid-season patch moved the player id indicator
+		idIndicator = []byte{0x8C, 0x61, 0x1A, 0x75, 0x23}
+	}
 	spawnIndicator := []byte{0xAF, 0x98, 0x99, 0xCA}
 	profileIDIndicator := []byte{0x8A, 0x50, 0x9B, 0xD0}
 	//unknownIndicator := []byte{0x22, 0xEE, 0xD4, 0x45, 0xC8, 0x08} // maybe player appearance?
@@ -96,34 +99,26 @@ func readPlayer(r *Reader) error {
 	// there seems to be more to this, but its a quick fix for atk op swaps for now
 	var uiID uint64
 	if r.Header.CodeVersion >= Y9S3 {
-		if err = r.Seek([]byte{0x38, 0xDF, 0xEE, 0x88}); err != nil {
-			return err
-		}
-		if err = r.Skip(13); err != nil {
-			return err
-		}
-		if uiID, err = r.Uint64(); err != nil {
-			return err
+		save := r.offset
+		if r.Seek([]byte{0x38, 0xDF, 0xEE, 0x88}) != nil {
+			r.offset = save // indicator moved (Y11S2 patch); uiID is non-critical, skip
+		} else if r.Skip(13) == nil {
+			uiID, _ = r.Uint64()
 		}
 	}
 	// Older versions of siege did not include profile ids
 	profileID := ""
 	var unknownId uint64
 	if len(r.Header.RecordingProfileID) > 0 {
-		if err = r.Seek(profileIDIndicator); err != nil {
-			return err
+		save := r.offset
+		if r.Seek(profileIDIndicator) != nil {
+			r.offset = save // indicator moved (Y11S2 patch); profileID is non-critical, skip
+		} else if profileID, err = r.String(); err == nil {
+			if r.Skip(5) == nil {
+				unknownId, _ = r.Uint64()
+			}
 		}
-		profileID, err = r.String()
-		if err != nil {
-			return err
-		}
-		if err = r.Skip(5); err != nil { // 22eed445c8
-			return err
-		}
-		unknownId, err = r.Uint64()
-		if err != nil {
-			return err
-		}
+		err = nil
 	} else {
 		log.Debug().Str("warn", "profileID not found, skipping").Send()
 	}

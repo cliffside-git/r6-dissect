@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/redraskal/r6-dissect/dissect"
+	"github.com/cliffside-git/r6-dissect/dissect"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -71,7 +71,7 @@ func parseOpConst(c *types.Const) (op dissect.Operator, err error) {
 }
 
 const (
-	packageName      string = "github.com/redraskal/r6-dissect/dissect"
+	packageName      string = "github.com/cliffside-git/r6-dissect/dissect"
 	operatorTypeName string = "Operator"
 )
 

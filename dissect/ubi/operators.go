@@ -25,7 +25,7 @@ func GetOperatorMap() (opNames map[string]Operator, err error) {
 		return
 	}
 	// identify ourselves
-	req.Header.Add("User-Agent", "github.com/redraskal/r6-dissect")
+	req.Header.Add("User-Agent", "github.com/cliffside-git/r6-dissect")
 	req.Header.Add("Accept", "text/html")
 	var resp *http.Response
 	resp, err = http.DefaultClient.Do(req)

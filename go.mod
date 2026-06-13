@@ -1,4 +1,4 @@
-module github.com/redraskal/r6-dissect
+module github.com/cliffside-git/r6-dissect
 
 go 1.23
 
