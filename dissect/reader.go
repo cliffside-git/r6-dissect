@@ -29,6 +29,7 @@ type Reader struct {
 	readPartial              bool // reads up to the player info packets
 	playersRead              int
 	lastKillerFromScoreboard string
+	idIndicator              []byte        // resolved once per round; see playerIDIndicator
 	Header                   Header        `json:"header"`
 	MatchFeedback            []MatchUpdate `json:"matchFeedback"`
 	Scoreboard               Scoreboard

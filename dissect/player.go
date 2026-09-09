@@ -7,14 +7,57 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// Player-id markers seen in the wild. Ubisoft does not move this forward
+// monotonically: the classic marker was replaced by playerIDMidseason in build
+// 9734089 (a Y11S2 mid-season patch) and then REVERTED in 9785623, which still
+// reports itself as Y11S2. A `CodeVersion >= 9734089` gate therefore looked
+// right for one build and silently broke every build after it.
+var (
+	playerIDClassic   = []byte{0x33, 0xD8, 0x3D, 0x4F, 0x23}
+	playerIDMidseason = []byte{0x8C, 0x61, 0x1A, 0x75, 0x23}
+	playerIDY7S2      = []byte{0xE6, 0xF9, 0x7D, 0x86}
+)
+
+// playerIDIndicator picks the player-id marker this replay actually uses, by
+// looking for it, and caches the answer for the round.
+//
+// This is deliberately detection rather than a version gate. Seek returns
+// io.EOF when its pattern is absent, Reader.Read aborts on the first listener
+// error, and MatchReader.Read aborts on the first round -- so guessing wrong
+// here does not degrade one field, it fails the entire match with
+// "read round 1: EOF" and leaves an empty scoreboard for PlayerStats to panic
+// on. That is exactly what happened between 2026-06-21 and 2026-09-09: ~100%
+// of R6 parses failed for eleven weeks because a marker flipped back and the
+// gate did not know. Detection cannot go stale; a boundary re-derived every
+// season can, and did.
+//
+// Cost is one scan of the decompressed round on first use, amortised across
+// all ten players.
+func (r *Reader) playerIDIndicator() []byte {
+	if r.idIndicator != nil {
+		return r.idIndicator
+	}
+	switch {
+	case r.Header.CodeVersion <= Y7S2:
+		r.idIndicator = playerIDY7S2
+	case bytes.Contains(r.b, playerIDClassic):
+		r.idIndicator = playerIDClassic
+	case bytes.Contains(r.b, playerIDMidseason):
+		r.idIndicator = playerIDMidseason
+	default:
+		// Neither is present: a genuinely new format. Fall back to the classic
+		// marker so the failure surfaces as the usual seek error rather than a
+		// nil pattern, and say so -- this is the line that should send whoever
+		// is on call to the runbook.
+		log.Warn().Int("codeVersion", r.Header.CodeVersion).Str("season", r.Header.GameVersion).
+			Msg("no known player-id indicator in this build; parsing will fail")
+		r.idIndicator = playerIDClassic
+	}
+	return r.idIndicator
+}
+
 func readPlayer(r *Reader) error {
-	idIndicator := []byte{0x33, 0xD8, 0x3D, 0x4F, 0x23}
-	if r.Header.CodeVersion <= Y7S2 {
-		idIndicator = []byte{0xE6, 0xF9, 0x7D, 0x86}
-	}
-	if r.Header.CodeVersion >= 9734089 { // Y11S2 mid-season patch moved the player id indicator
-		idIndicator = []byte{0x8C, 0x61, 0x1A, 0x75, 0x23}
-	}
+	idIndicator := r.playerIDIndicator()
 	spawnIndicator := []byte{0xAF, 0x98, 0x99, 0xCA}
 	profileIDIndicator := []byte{0x8A, 0x50, 0x9B, 0xD0}
 	//unknownIndicator := []byte{0x22, 0xEE, 0xD4, 0x45, 0xC8, 0x08} // maybe player appearance?
