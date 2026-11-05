@@ -55,6 +55,7 @@ type Player struct {
 	Spawn        string   `json:"spawn,omitempty"`
 	DissectID    []byte   `json:"-" deep:"-"` // dissect player id at end of packet (4 bytes)
 	uiID         uint64   `json:"-" deep:"-"`
+	scoreboardID []byte
 }
 
 type stringerIntMarshal struct {
@@ -413,6 +414,10 @@ func (r *Reader) readHeader() (Header, error) {
 		}
 		_, lastProp = props["teamscore1"]
 	}
+	// Y11S3 headers end on a player block followed only by the team scores.
+	if playerData {
+		players = append(players, currentPlayer)
+	}
 	h := Header{
 		Teams:      [2]Team{},
 		Players:    players,
@@ -524,10 +529,8 @@ func (r *Reader) readHeader() (Header, error) {
 	return h, nil
 }
 
-// deriveTeamRoles uses the operators chosen by the players to
-// determine the team roles
-func (r *Reader) deriveTeamRoles() {
-	log.Debug().Int("players", len(r.Header.Players)).Msg("deriving team roles")
+func (r *Reader) dropEmptySlots() {
+	log.Debug().Int("players", len(r.Header.Players)).Msg("dropping empty slots")
 	if len(r.Header.Players) > 10 {
 		log.Warn().Msg("tracked players greater than 10")
 	}
@@ -536,16 +539,16 @@ func (r *Reader) deriveTeamRoles() {
 		log.Debug().Interface("player", p).Send()
 		if p.Operator != 0 {
 			players = append(players, p)
-			r.Scoreboard.Players = append(r.Scoreboard.Players, ScoreboardPlayer{
-				ID: p.DissectID,
-			})
 		} else {
 			log.Warn().Str("username", p.Username).Msg("operator id was 0, removing from list")
 		}
 	}
 	r.Header.Players = players
+}
+
+func (r *Reader) deriveRoles() {
 	for _, p := range r.Header.Players {
-		if p.Operator == Recruit {
+		if p.Operator == Recruit || p.Operator == 0 {
 			continue
 		}
 		role := p.Operator.Role()

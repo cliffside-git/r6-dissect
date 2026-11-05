@@ -218,13 +218,19 @@ func (r *Reader) Read() (err error) {
 		return matches[i].offset < matches[j].offset
 	})
 	log.Debug().Int("matches", len(matches)).Msg("calling listeners")
+listen:
 	for _, entry := range matches {
 		for _, listener := range r.listeners[entry.listenerIndex] {
 			r.offset = entry.offset + 1
 			if err = listener(r); err != nil {
-				return
+				break listen
 			}
 		}
+	}
+	r.dropEmptySlots()
+	r.deriveRoles()
+	if err != nil {
+		return err
 	}
 	if !r.readPartial {
 		r.roundEnd()

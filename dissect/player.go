@@ -62,11 +62,7 @@ func readPlayer(r *Reader) error {
 	profileIDIndicator := []byte{0x8A, 0x50, 0x9B, 0xD0}
 	//unknownIndicator := []byte{0x22, 0xEE, 0xD4, 0x45, 0xC8, 0x08} // maybe player appearance?
 	r.playersRead++
-	defer func() {
-		if r.playersRead == 10 {
-			r.deriveTeamRoles()
-		}
-	}()
+	scoreboardID := r.playerScoreboardID(r.offset)
 	username, err := r.String()
 	if err != nil {
 		return err
@@ -166,14 +162,15 @@ func readPlayer(r *Reader) error {
 		log.Debug().Str("warn", "profileID not found, skipping").Send()
 	}
 	p := Player{
-		ID:        unknownId,
-		ProfileID: profileID,
-		Username:  username,
-		TeamIndex: teamIndex,
-		Operator:  Operator(op),
-		Spawn:     spawn,
-		DissectID: id,
-		uiID:      uiID,
+		ID:           unknownId,
+		ProfileID:    profileID,
+		Username:     username,
+		TeamIndex:    teamIndex,
+		Operator:     Operator(op),
+		Spawn:        spawn,
+		DissectID:    id,
+		uiID:         uiID,
+		scoreboardID: scoreboardID,
 	}
 	if p.Operator != Recruit && p.Operator.Role() == Defense {
 		p.Spawn = r.Header.Site // We cannot detect the spawn here on defense
@@ -198,6 +195,7 @@ func readPlayer(r *Reader) error {
 			r.Header.Players[i].Spawn = p.Spawn
 			r.Header.Players[i].DissectID = p.DissectID
 			r.Header.Players[i].uiID = p.uiID
+			r.Header.Players[i].scoreboardID = p.scoreboardID
 			found = true
 			break
 		}
