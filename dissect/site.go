@@ -30,6 +30,7 @@ func readSpawn(r *Reader) error {
 	if r.Header.Site == "" || bytes.Equal(pattern, currentSitePattern) {
 		formatted := strings.Replace(location, "<br/>", ", ", 1)
 		log.Debug().Str("site", formatted).Msg("defense site")
+		r.deriveRoles()
 		for i, p := range r.Header.Players {
 			defenseTeam := r.Header.Teams[p.TeamIndex].Role == Defense
 			defenseRole := p.Operator != Recruit && p.Operator != 0 && p.Operator.Role() == Defense

@@ -87,7 +87,10 @@ func (r *Reader) PlayerStats() []PlayerRoundStats {
 		winningTeamIndex = 1
 	}
 	for i, p := range r.Header.Players {
-		scorePlayer := r.Scoreboard.Players[i]
+		var scorePlayer ScoreboardPlayer
+		if s := r.Scoreboard.find(p.DissectID); s != nil {
+			scorePlayer = *s
+		}
 		stats = append(stats, PlayerRoundStats{
 			Username:  p.Username,
 			TeamIndex: p.TeamIndex,
@@ -99,16 +102,20 @@ func (r *Reader) PlayerStats() []PlayerRoundStats {
 	}
 	lastDeath := -1
 	for _, a := range r.MatchFeedback {
-		i := index[a.Username]
+		i, inRound := index[a.Username]
 		if a.Type == Kill {
-			stats[i].Kills += 1
-			if *a.Headshot {
-				stats[i].Headshots += 1
+			if inRound {
+				stats[i].Kills += 1
+				if *a.Headshot {
+					stats[i].Headshots += 1
+				}
+				stats[i].HeadshotPercentage = headshotPercentage(stats[i].Headshots, stats[i].Kills)
 			}
-			stats[i].HeadshotPercentage = headshotPercentage(stats[i].Headshots, stats[i].Kills)
-			stats[index[a.Target]].Died = true
-			lastDeath = index[a.Target]
-		} else if a.Type == Death {
+			if t, ok := index[a.Target]; ok {
+				stats[t].Died = true
+				lastDeath = t
+			}
+		} else if a.Type == Death && inRound {
 			stats[i].Died = true
 			lastDeath = i
 		}
@@ -138,12 +145,16 @@ func (r *Reader) PlayerStats() []PlayerRoundStats {
 		username := stats[lastWinnerStanding].Username
 		teamLeft := r.NumPlayers(winningTeamIndex)
 		oneVx := 0
+		onWinningTeam := func(username string) bool {
+			i, ok := index[username]
+			return ok && stats[i].TeamIndex == winningTeamIndex
+		}
 		for _, a := range r.MatchFeedback {
-			if a.Type == Kill && stats[index[a.Target]].TeamIndex == winningTeamIndex {
+			if a.Type == Kill && onWinningTeam(a.Target) {
 				teamLeft--
-			} else if a.Type == Death && stats[index[a.Username]].TeamIndex == winningTeamIndex {
+			} else if a.Type == Death && onWinningTeam(a.Username) {
 				teamLeft--
-			} else if a.Type == PlayerLeave && stats[index[a.Username]].TeamIndex == winningTeamIndex {
+			} else if a.Type == PlayerLeave && onWinningTeam(a.Username) {
 				teamLeft--
 			}
 			if a.Username != username {
