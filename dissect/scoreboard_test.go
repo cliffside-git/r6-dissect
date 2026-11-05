@@ -1,4 +1,4 @@
-package dissect_test
+package dissect
 
 import (
 	"bufio"
@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cliffside-git/r6-dissect/dissect"
 	"github.com/klauspost/compress/zstd"
 )
 
@@ -65,7 +64,7 @@ type headerPlayer struct {
 // scoreboard update, so readers that skip ahead stay inside the buffer.
 const restOfRound = 512
 
-func newRound(t *testing.T, players []headerPlayer, body ...[]byte) *dissect.Reader {
+func newRound(t *testing.T, players []headerPlayer, body ...[]byte) *Reader {
 	t.Helper()
 	var b bytes.Buffer
 	b.WriteString("dissect")
@@ -102,30 +101,30 @@ func newRound(t *testing.T, players []headerPlayer, body ...[]byte) *dissect.Rea
 	if err != nil {
 		t.Fatal(err)
 	}
-	r, err := dissect.NewReader(bytes.NewReader(enc.EncodeAll(b.Bytes(), nil)))
+	r, err := NewReader(bytes.NewReader(enc.EncodeAll(b.Bytes(), nil)))
 	if err != nil {
 		t.Fatalf("NewReader: %v", err)
 	}
 	return r
 }
 
-func readRound(t *testing.T, players []headerPlayer, body ...[]byte) *dissect.Reader {
+func readRound(t *testing.T, players []headerPlayer, body ...[]byte) *Reader {
 	t.Helper()
 	r := newRound(t, players, body...)
-	if err := r.Read(); !dissect.Ok(err) {
+	if err := r.Read(); !Ok(err) {
 		t.Fatalf("Read: %v", err)
 	}
 	return r
 }
 
-func playerStats(t *testing.T, r *dissect.Reader) (stats map[string]dissect.PlayerRoundStats) {
+func playerStats(t *testing.T, r *Reader) (stats map[string]PlayerRoundStats) {
 	t.Helper()
 	defer func() {
 		if p := recover(); p != nil {
 			t.Fatalf("PlayerStats panicked: %v", p)
 		}
 	}()
-	stats = map[string]dissect.PlayerRoundStats{}
+	stats = map[string]PlayerRoundStats{}
 	for _, s := range r.PlayerStats() {
 		stats[s.Username] = s
 	}
@@ -193,7 +192,7 @@ func TestShortRoundGivesPresentPlayersTheirStats(t *testing.T) {
 			t.Errorf("%s: team %d, want %d from the header", name, got.TeamIndex, team)
 		}
 	}
-	if r.Header.Teams[0].Role != dissect.Attack || r.Header.Teams[1].Role != dissect.Defense {
+	if r.Header.Teams[0].Role != Attack || r.Header.Teams[1].Role != Defense {
 		t.Errorf("team roles = %q/%q, want Attack/Defense from player01's attacker", r.Header.Teams[0].Role, r.Header.Teams[1].Role)
 	}
 }
@@ -210,11 +209,11 @@ func TestHeaderKeepsItsLastPlayer(t *testing.T) {
 
 func TestPlayerStatsSkipsFeedNamesOutsideTheRound(t *testing.T) {
 	no := false
-	r := &dissect.Reader{}
-	r.Header.Players = []dissect.Player{{Username: "player01"}, {Username: "player07", TeamIndex: 1}}
-	r.MatchFeedback = []dissect.MatchUpdate{
-		{Type: dissect.Kill, Username: "outsider", Target: "player07", Headshot: &no},
-		{Type: dissect.Kill, Username: "player07", Target: "outsider", Headshot: &no},
+	r := &Reader{}
+	r.Header.Players = []Player{{Username: "player01"}, {Username: "player07", TeamIndex: 1}}
+	r.MatchFeedback = []MatchUpdate{
+		{Type: Kill, Username: "outsider", Target: "player07", Headshot: &no},
+		{Type: Kill, Username: "player07", Target: "outsider", Headshot: &no},
 	}
 	stats := playerStats(t, r)
 
